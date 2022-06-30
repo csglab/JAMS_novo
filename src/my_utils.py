@@ -147,7 +147,7 @@ def read_bed(peak_path):
 
 def check_tasks(task_list):
 
-    possible_tasks = ['DATA', 'BUILD', 'PREDICT']
+    possible_tasks = ['DATA', 'BUILD', 'PREDICT', 'NOVO']
     task_list.sort()
     
     if ( len(task_list) == 3 ):
@@ -228,15 +228,8 @@ def check_arguments(arguments):
             print("--output_dir you should specify an output directory")
             exit(2)
             
-            
-            
+                        
     if "BUILD" in arguments.TASK:
-
-        try:
-            int(arguments.FLANKING)
-        except:
-            print("--flanking should be an integer")
-            exit(2)
 
         if not os.path.isdir(arguments.IN_PATH):
             print("--data_dir directory doesn't exist")
@@ -246,7 +239,19 @@ def check_arguments(arguments):
             print("--output_dir you should specify an output directory")
             exit(2)
 
+            
+    if "NOVO" in arguments.TASK:
 
+        if arguments.NOVO_SKIP_DATA == False:
+            print("extracting data")
+            print("############## NOT YET WRITTEN")
+            exit(2)
+        else:
+            if not os.path.isdir(arguments.IN_PATH):
+                print("--data_dir directory doesn't exist")
+                exit(2)
+    
+    
     if "PREDICT" in arguments.TASK:
 
         if not os.path.isfile(arguments.COEFFS):
@@ -289,12 +294,6 @@ def check_arguments(arguments):
             print("--data_dir directory doesn't exist")
             exit(2)
             
-        try:
-            int(arguments.FLANKING)
-        except:
-            print("--flanking should be an integer")
-            exit(2)
-
         if (arguments.OUT_PATH == "default_none"):
             print("--output_dir you should specify an output directory")
             exit(2)

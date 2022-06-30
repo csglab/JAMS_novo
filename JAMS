@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description='')
 
 parser.add_argument('--task', dest='TASK',
                     action='store', default='default_none',
-                    nargs="*", help='tasks: DATA, BUILD or PREDICT.')
+                    nargs="*", help='tasks: DATA, BUILD, PREDICT, or NOVO.')
 ## ID names
 parser.add_argument('--experiment_id', dest='EXP_ID', action='store',
                     default='default_none',
@@ -83,16 +83,29 @@ parser.add_argument('--output_dir', dest='OUT_PATH', action='store',
                     help='The path to the folder that will contain the output files.')
 ## Formatted data files
 parser.add_argument('--data_dir', dest='IN_PATH', action='store',
-                    default="./data/out",
+                    default="",
                     help='The path to the folder that contains the required files to build the JAMS model.')
 ## 
 parser.add_argument('--flanking', dest='FLANKING', action='store', \
-                    default=int(20),
+                    default=int(20), type = int,
                     help='The number of base pairs around the core motif that will be included in the model.')
+
+#### De novo options
+parser.add_argument('--novo_skip_data', dest='NOVO_SKIP_DATA', action='store_true', \
+                    help='')
+
+parser.add_argument('--novo_exclude_meth', dest='NOVO_EXCLUDE_METH', action='store_true', \
+                    help='')
+
+parser.add_argument('--novo_max_iterations', dest='NOVO_MAX_ITERATIONS', action='store', \
+                    type = int, default = 30, help='')
+
+parser.add_argument('--novo_start_motif_length', dest='NOVO_START_MOTIF_LENGTH', \
+                    action='store', type = int, default = 5, help='')
+
 
 args = parser.parse_args()
 TAGCUTOFF = 0 # Why?
-
         
 if __name__ == '__main__':
 
@@ -118,11 +131,20 @@ if __name__ == '__main__':
         methyl_chip.extract_data(args)
         ## Remove temporary files (*.tmp)
         my_utils.remove_tmp_files(args.IN_PATH)
-        
+    
+    
     if "BUILD" in args.TASK:
         print("Building model with JAMS ...")
         methyl_chip.run_methyl_chip(args)
     
+    
+    if "NOVO" in args.TASK:
+        print("De novo motif finding with JAMS")
+        
+        methyl_chip.de_novo_motif_finding(args)
+        
+        
+        
     if "PREDICT" in args.TASK:
         print("Predicting TF binding ...")
         if ( args.PFM == "default_none") and ( "SEARCH" == args.MOTIF_IN_REGIONS ): 
@@ -136,7 +158,6 @@ if __name__ == '__main__':
         
         args.IN_PATH = args.OUT_PATH + "/" + args.EXP_ID + "_predict_input_data"
         my_utils.run_cmd("mkdir -p %s" % ( args.IN_PATH ))
-
         
         ## subtask - search best hit or use as it is.
         args.PEAKS = my_utils.read_bed(args.PEAKS)

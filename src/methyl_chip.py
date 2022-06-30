@@ -596,5 +596,28 @@ def write_aligned_pos_bed_n_txt(out_prefix, peaks, chr_sizes):
             print(affimx_line, end="\n", file=affimx_f)
         
         pass
+
     
+def de_novo_motif_finding(arguments):
     
+    if ( arguments.NOVO_SKIP_DATA == False ):
+        print("Extracting data")
+        print("################## NOT YET WRITTEN")
+        exit(0)
+    
+    my_utils.run_cmd( "Rscript %s/de_novo_motif_discovery_JAMS.R --script_path %s --experiment %s --flanking %s --pfm_length %s --iterations %s --input_dir %s --output_dir %s --exclude_meth %s " % \
+                      ( os.path.dirname(os.path.realpath(__file__)), \
+                        os.path.dirname(os.path.realpath(__file__)), \
+                        arguments.EXP_ID, \
+                        arguments.FLANKING , \
+                        arguments.NOVO_START_MOTIF_LENGTH , \
+                        arguments.NOVO_MAX_ITERATIONS , \
+                        arguments.IN_PATH , \
+                        arguments.OUT_PATH, \
+                        arguments.NOVO_EXCLUDE_METH
+                      ) )
+
+
+
+
+
