@@ -46,7 +46,7 @@ option_list = list(
               default="./data/CTCF_demo/02_formatted_data/smallest_demo",
               help="Input directory with PFM, methylation counts etc ..."),
 
-  make_option(c("-i", "--max_iterations"), type="character", metavar="character",
+  make_option(c("-i", "--max_iterations"), type="character", metavar="integer",
               default=100,
               help="Input directory with PFM, methylation counts etc ..."),  
     
@@ -149,7 +149,10 @@ predictors_list <- pre_calc_by_pos_dat( this_dat_all = dat_all,
 cat(paste0( "Start iterations wall time: ", Sys.time(), "\n"))
 
 while( shift_pos != 0 ){
-  cat("at while")
+  
+    if ( as.integer(iteration) > as.integer(opt$max_iterations) ){ 
+      cat( "Max number of iterations reached\n")
+    break }
   
   ## If the motif length had to be expanded 
   ##  (can't be expanded on the first iteration)
@@ -196,14 +199,13 @@ while( shift_pos != 0 ){
     cat( paste0( "Iteration: ", i, "\n" ) )
     prefix_iteration <- paste0( prefix, "_iteration_", format_iteration(i) )
     
-    cat("train glm\n")
     #############################################################   Train GLM ####
     this_glm <- train_GLM_at_shifted_pos( flanking = opt$flanking,
                                           pfm_length = opt$pfm_length,
                                           dat_all = dat_all,
                                           start_pos = start_pos,
                                           exclude_meth = opt$exclude_meth )
-    cat("done training glm\n")
+
     ############### Evaluate every position within +/- 200 bps of peak center ####
     pdwn_coeffs <- as.data.frame( coefficients( summary( this_glm ) ) )
     
@@ -333,22 +335,7 @@ while( shift_pos != 0 ){
       }
     }
   }
-
-  cat("end while")
-  if ( iteration > opt$max_iterations ){ 
-    cat( "Max number of iterations reached ")
-    break }
 }
-
-
-
-
-
-
-
-
-
-
 
 
 ######################## Format and write start positions across iterations ####
