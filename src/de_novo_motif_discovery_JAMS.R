@@ -55,7 +55,7 @@ option_list = list(
               help="", metavar="character"),
   
   make_option(c("-x", "--shifting_pos"), type="integer",
-              default=3,
+              default=2,
               help="", metavar="character"),  
   
   make_option(c("-z", "--inf_pct"), type="double",
@@ -76,9 +76,10 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser); rm(option_list, opt_parser)
 
-
-
 opt$exclude_meth <- as.logical( toupper(opt$exclude_meth) )
+
+## ahcorcha
+# opt$exclude_meth <- TRUE
 
 source( paste0( opt$script_path, "/Methyl_ChIP_ftns.R") )
 ## Source_python is required for source de_novo_discovery_ftns.R
@@ -158,8 +159,24 @@ while( shift_pos != 0 ){
   ##  (can't be expanded on the first iteration)
   if ( pfm_length_change_flag ){
     
-    start_pos <- start_pos - 2
-    opt$pfm_length <- opt$pfm_length + 4
+    
+    if ( shift_pos == "expand" ){
+      cat( paste0( "Expanding motif at both ends by: ", 
+                   opt$shifting_pos, "\n" ) )
+      start_pos <- start_pos - opt$shifting_pos
+      opt$pfm_length <- opt$pfm_length + opt$shifting_pos * 2
+      
+    } else{
+      cat( paste0( "Expand motif to: ", shift_pos, "\n" ) )
+      
+      if( shift_pos < 0 ){
+        start_pos <- start_pos - opt$shifting_pos
+        opt$pfm_length <- opt$pfm_length + opt$shifting_pos }
+      
+      if( shift_pos > 0 ){
+        opt$pfm_length <- opt$pfm_length + opt$shifting_pos }
+    }
+    
     
     cat(paste0( "Loading data (motif length = ", opt$pfm_length, ") ...\n" ) )
     
@@ -317,26 +334,17 @@ while( shift_pos != 0 ){
       ## returns positions to be shifted +/- 1,2,3,4,5 or expand
       shift_pos <- pos_to_wiggle( pdwn_coeffs, opt$shifting_pos, opt$inf_pct )
       
-      if( shift_pos == 0 ){ cat("Not shifting the positions, low information content in each end\n"); break }
-      # if( shift_pos == 0 ){ cat("Not shifting the positions, low information content in each end\n") }
+      if( shift_pos == 0 ){ 
+        cat("Not shifting the positions, low information content in each end\n")
+        break }
       
-      if ( shift_pos == "expand" ){
-        cat( paste0( "Expanding motif length, high information content in both ends\n" ) )
+      if ( shift_pos != 0 ){
         pfm_length_change_flag <- TRUE
-        break
-         
-      } else {
+        break }
       
-        cat( paste0( "Wiggle position by: ", shift_pos, "\n" ))
-        start_pos <- start_pos + shift_pos
-        ## Make sure we dont shift to upper and lower limits
-        start_pos[ start_pos < pos_limits[1] ] <- pos_limits[1]
-        start_pos[ start_pos > pos_limits[2] ] <- pos_limits[2]
-      }
     }
   }
 }
-
 
 ######################## Format and write start positions across iterations ####
 start_pos_list_df <- as.data.frame( start_pos_list )
