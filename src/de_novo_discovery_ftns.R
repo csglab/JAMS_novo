@@ -75,7 +75,7 @@ load_dat <- function( input_root, pfm_length = 10 ){
   minimum <- min( acc, na.rm = TRUE )
   pseudocount <- median( sort(as.numeric(as.vector(as.matrix( acc))) ), na.rm = TRUE ) * 0.01
   
-  cat( paste0( "\nMinimum value for DNA accessibility (before average or log): ", 
+  cat( paste0( "Minimum value for DNA accessibility (before average or log): ", 
                minimum, "\n", "Pseudocount: ", pseudocount, "\n" ) )
   acc[ is.na( acc ) ] <- pseudocount
   

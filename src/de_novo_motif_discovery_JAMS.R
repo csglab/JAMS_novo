@@ -27,8 +27,8 @@ set.seed(5)
 # use_virtualenv("r-reticulate")
 # Used for testing with Rstudio, normally commented
 # setwd("/home/ahcorcha/repos/tools/JAMS_novo") # ahcorcha
-
-
+# ./data/CTCF_demo/02_formatted_data/smallest_demo
+# /home/ahcorcha/repos/tools/JAMS_novo/data/CTCF_demo/05_motif_discovery/IN/NRF1_HUMAN_GM12878_ENCFF910PTH
 ########################################################   IN and load data ####
 option_list = list(
   make_option(c("-e", "--experiment"), type="character",
@@ -43,7 +43,7 @@ option_list = list(
               help="", metavar="character"),
   
   make_option(c("-d", "--input_dir"), type="character", metavar="character",
-              default="./data/CTCF_demo/02_formatted_data/smallest_demo",
+              default="/home/ahcorcha/repos/tools/JAMS_novo/data/CTCF_demo/05_motif_discovery/IN/NRF1_HUMAN_GM12878_ENCFF910PTH",
               help="Input directory with PFM, methylation counts etc ..."),
 
   make_option(c("-i", "--max_iterations"), type="character", metavar="integer",
@@ -104,7 +104,7 @@ if ( opt$exclude_meth ) {
 }
 
 
-cat(paste0( "Loading data (motif length = ", opt$pfm_length, ") ...\n" ) )
+cat( paste0( "\n\nLoading data (motif length = ", opt$pfm_length, ") ...\n" ) )
 dat_all <- load_dat( opt$input_dir, pfm_length = opt$pfm_length )
 num_peaks <- nrow( dat_all$x.A.all )
 
@@ -161,7 +161,7 @@ while( shift_pos != 0 ){
     
     
     if ( shift_pos == "expand" ){
-      cat( paste0( "Expanding motif at both ends by: ", 
+      cat( paste0( "\n\nExpanding motif at both ends by: ", 
                    opt$shifting_pos, "\n" ) )
       start_pos <- start_pos - opt$shifting_pos
       opt$pfm_length <- opt$pfm_length + opt$shifting_pos * 2
@@ -217,6 +217,7 @@ while( shift_pos != 0 ){
     prefix_iteration <- paste0( prefix, "_iteration_", format_iteration(i) )
     
     #############################################################   Train GLM ####
+    cat( "Training GLM ...\n" )
     this_glm <- train_GLM_at_shifted_pos( flanking = opt$flanking,
                                           pfm_length = opt$pfm_length,
                                           dat_all = dat_all,
@@ -224,6 +225,7 @@ while( shift_pos != 0 ){
                                           exclude_meth = opt$exclude_meth )
 
     ############### Evaluate every position within +/- 200 bps of peak center ####
+    cat("Evaluate every position within +/- 200 bps of peak center ...\n")
     pdwn_coeffs <- as.data.frame( coefficients( summary( this_glm ) ) )
     
     ## Get the pulldown coefficients
@@ -239,7 +241,6 @@ while( shift_pos != 0 ){
                                 FUN = eval_coeffs, 
                                 pdn_coeff = pdwn_coeffs$Estimate, 
                                 X_names = X_var_names )
-    ## ahcorcha use vapply
       
     rownames(c_pdwn_predicted) <- rownames(predictors_list[[1]])
     c_pdwn_predicted <- as.data.frame( c_pdwn_predicted )
@@ -278,6 +279,7 @@ while( shift_pos != 0 ){
     
     #############################   Visualize motif start pos over iterations ####
     ###### Save run's information: write coefficients / draw logo and DNA coeffs
+    cat( "Visualization ...\n" )
     dna_acc_plot_name <- paste0( prefix_iteration, "_dna_coefficients.pdf" )
   
     p_dna_coeffs <- plot_dna_acc_coefficients( this_glm )
@@ -304,14 +306,14 @@ while( shift_pos != 0 ){
                BBDD
                CCDD"
     
-    this.tittle <- paste0( experiment,
-                           ", flanking = ", opt$flanking,
+    this.tittle <- paste0( experiment, "\n",
+                           "flanking = ", opt$flanking,
                            ", motif length = ", opt$pfm_length,
                            ", iteration = ", i,
-                           ", n peaks = ", nrow(dat_all$x.C.all))
+                           ", n peaks = ", nrow( dat_all$x.C.all ) )
     
     if(opt$exclude_meth) { 
-      this.tittle <- paste0(this.tittle, ",\nTF model without intra-motif methylation") }
+      this.tittle <- paste0(this.tittle, ", TF model without intra-motif methylation") }
     
     p1 <- p_motif_coefs + phist +  p_motif_ht  +
           plot_layout( design = layout ) +
@@ -329,16 +331,17 @@ while( shift_pos != 0 ){
     
     if ( delta_mean_pos_change < 0.1 ){
       
-      cat( paste0( "Wiggle threshold percentage: ", opt$inf_pct, "\n" ))
+      cat( paste0( "Expand threshold percentage: ", opt$inf_pct, "\n" ))
       
       ## returns positions to be shifted +/- 1,2,3,4,5 or expand
       shift_pos <- pos_to_wiggle( pdwn_coeffs, opt$shifting_pos, opt$inf_pct )
       
       if( shift_pos == 0 ){ 
-        cat("Not shifting the positions, low information content in each end\n")
+        cat("Low information content in each end\n")
         break }
       
       if ( shift_pos != 0 ){
+        cat( "Expand to one side ...\n" )
         pfm_length_change_flag <- TRUE
         break }
       
@@ -347,6 +350,7 @@ while( shift_pos != 0 ){
 }
 
 ######################## Format and write start positions across iterations ####
+cat( "Format and write start positions across iterations ...\n" )
 start_pos_list_df <- as.data.frame( start_pos_list )
 colnames(start_pos_list_df) <- paste0( "iteration_", 0:(ncol(start_pos_list_df)-1) )
 rownames(start_pos_list_df) <- rownames(predictors_list[[1]])
@@ -361,6 +365,7 @@ write.csv( x = start_pos_list_df, row.names = FALSE,
            file = paste0( prefix, "_start_position_across_iterations.csv" ) )
 
 ######################################################## Write out TF motif ####
+cat( "Write out TF motif ...\n" )
 write.table( x = get_motif(pdwn_coeffs, magnitud = "Estimate" ),
            file = paste0( prefix, "_motif_from_scaled_estimate.tab" ), 
            sep = "\t", quote = FALSE, col.names = FALSE )
@@ -371,6 +376,7 @@ write.table( x = get_motif(pdwn_coeffs, magnitud = "z value" ),
 
 
 ############################################### Write out complete motif 
+cat( "Write out complete motif  ...\n" )
 motif <- as.matrix(get_motif(pdwn_coeffs, magnitud = "z value" ))
 p_logo <- ggseqlogo( data = motif, method = "custom", seq_type = "dna" ) +
                      ylab( "z value" )
@@ -382,6 +388,7 @@ write.pfm.cisbp( filename = paste0( prefix, "_complete_motif.pfm.txt" ),
 
 
 ############################################### Write out trimmed motif
+cat( "Write out trimmed motif ...\n" )
 motif <- trim_motif( motif, base_th = 0.2 )
 p_logo <- ggseqlogo( data = motif, method = "custom", seq_type = "dna" ) +
                      ylab( "z value" )
