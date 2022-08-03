@@ -283,6 +283,7 @@ while( shift_pos != 0 ){
     dna_acc_plot_name <- paste0( prefix_iteration, "_dna_coefficients.pdf" )
   
     p_dna_coeffs <- plot_dna_acc_coefficients( this_glm )
+
     motif_coefs <- write.sequence.model.av.met( seq_fit = this_glm, opt$exclude_meth, opt$pfm_length )
   
     write.table( x =  motif_coefs[[1]], quote = FALSE, sep = "\t",

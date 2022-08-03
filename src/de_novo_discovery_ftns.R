@@ -366,6 +366,7 @@ write.sequence.model.av.met <- function( seq_fit, exclude_meth, pfm_length ) {
   # label <- paste0( experiment, "_", iteration_name ) 
   # seq_fit <- this_glm
   # exclude_meth <- FALSE
+  # pfm_length <- 8
   # outdir <- "./data/de_novo_discovery_test"
   
   coefs <- coefficients( summary( seq_fit ) )
@@ -407,10 +408,10 @@ write.sequence.model.av.met <- function( seq_fit, exclude_meth, pfm_length ) {
   
   ## 
   coefs_control_meth$FDR[ is.na( coefs_control_meth$FDR ) ] <- 1
-  coefs_control_meth[ coefs_control_meth$FDR >= 0.00001, ]$Estimate <- NA
+  coefs_control_meth[ coefs_control_meth$FDR >= 0.00001, "Estimate"] <- NA
 
   coefs_pulldown_meth$FDR[ is.na( coefs_pulldown_meth$FDR ) ] <- 1
-  coefs_pulldown_meth[ coefs_pulldown_meth$FDR >= 0.00001, ]$Estimate <- NA
+  coefs_pulldown_meth[ coefs_pulldown_meth$FDR >= 0.00001, "Estimate"] <- NA
   
   
   # Take out CpG position coefficients
