@@ -11,15 +11,16 @@ suppressPackageStartupMessages(require(MASS))
 suppressPackageStartupMessages(require(patchwork))
 
 options( error = traceback, nwarnings = 10000 )
-# source( "/home/ahcorcha/repos/tools/vanilla_JAMS/src/Methyl_ChIP_ftns.R" ) # ahcorcha
-
-
+# Used for testing with Rstudio, normally commented
+# setwd("/home/ahcorcha/repos/tools/JAMS_novo")
+# source( "/home/ahcorcha/repos/tools/JAMS_novo/src/Methyl_ChIP_ftns.R" ) 
+set.seed(5)
 ############################################################################## #
 ################################ Read I/O. ################################### #
 ################################################################################
 option_list = list(
   make_option(c("-e", "--experiment"), type="character",
-              default="CTCF_HEK293_GSM2026781_smallest_in_R",
+              default="CTCF_HEK293_GSM2026781_normal",
               help="Experiment ID", metavar="character"),
 
   make_option(c("-f", "--flanking"), type="integer", default=20,
@@ -34,7 +35,7 @@ option_list = list(
               help="", metavar="character"),
   
   make_option(c("-s", "--script_path"), type="character",
-              default="/home/ahcorcha/repos/tools/vanilla_JAMS/src",
+              default="/home/ahcorcha/repos/tools/JAMS_novo/src",
               help="", metavar="character")
   );
 

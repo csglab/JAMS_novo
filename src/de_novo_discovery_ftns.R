@@ -242,6 +242,7 @@ get_bin_acc <- function( acc = acc, pfm_length = pfm_length ){
                      bin_up_3 =   rowMeans( acc[,(1400+pfm_length):(1600+pfm_length)] ),
                      bin_up_4 =   rowMeans( acc[,(1600+pfm_length):(1800+pfm_length)] ),
                      bin_up_5 =   rowMeans( acc[,(1800+pfm_length):(2000+pfm_length)] ))
+    acc <- log( acc )
   return(acc) }
 
 
@@ -250,8 +251,9 @@ get_bin_acc <- function( acc = acc, pfm_length = pfm_length ){
 # 
 train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos, exclude_meth ){
   
-  # flanking <- flanking
-  # pfm_length <- pfm_length
+  # start_pos <- rep_len(x = 101, length.out = nrow(dat_all$x.Met.all))
+  # flanking <- 20
+  # pfm_length <- 15
   # dat_all <- dat_all
   # exclude_meth <- FALSE
   
@@ -275,7 +277,6 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos, 
   acc_start_extract_pos <- start_pos
   acc <- shift_per_row( acc_start_extract_pos, dat_all$acc, region_len )
   acc <- get_bin_acc( acc, pfm_length = pfm_length )
-  
   
   upstream_flank <- 1:(flanking)
   motif <- (flanking+1):(flanking+pfm_length)
@@ -322,14 +323,13 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos, 
                     x.G_up = x.G_up,x.M_up = x.M_up, 
                     x.W_up = x.W_up, x.T_down = x.T_down, 
                     x.C_down = x.C_down, x.G_down = x.G_down,
-                    x.M_down = x.M_down, x.W_down = x.W_down, 
+                    x.M_down = x.M_down, x.W_down = x.W_down,
                     stringsAsFactors = TRUE )
   
   rownames( XX ) <- NULL
   XX <- rbind( XX, XX )
   rownames( XX ) <- c( paste0( "control.", dat_all$target$Name ), 
                        paste0( "pulldown.", dat_all$target$Name ) )
-  
   
   predictor.names.ctrl <- colnames( XX )
   

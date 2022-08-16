@@ -25,33 +25,33 @@ set.seed(5)
 # virtualenv_create("r-reticulate")
 # virtualenv_install("r-reticulate", "numba", version = "0.55.2" )
 # use_virtualenv("r-reticulate")
+
 # Used for testing with Rstudio, normally commented
 # setwd("/home/ahcorcha/repos/tools/JAMS_novo") # ahcorcha
-# ./data/CTCF_demo/02_formatted_data/smallest_demo
-# /home/ahcorcha/repos/tools/JAMS_novo/data/CTCF_demo/05_motif_discovery/IN/NRF1_HUMAN_GM12878_ENCFF910PTH
+# /home/ahcorcha/repos/tools/JAMS_novo/dat/IN/NRF1_HUMAN_GM12878_ENCFF910PTH
 ########################################################   IN and load data ####
 option_list = list(
   make_option(c("-e", "--experiment"), type="character",
-              default="test",
+              default="CTCF_HEK293_GSM2026781_de_novo",
               help="Experiment ID", metavar="character"),
 
   make_option(c("-f", "--flanking"), type="integer", default=20,
               help="length of flanking sequence around the motif", 
               metavar="character"),
   
-  make_option(c("-l", "--pfm_length"), type="integer", default=8,
+  make_option(c("-l", "--pfm_length"), type="integer", default=15,
               help="", metavar="character"),
   
   make_option(c("-d", "--input_dir"), type="character", metavar="character",
-              default="/home/ahcorcha/repos/tools/JAMS_novo/data/CTCF_demo/05_motif_discovery/IN/NRF1_HUMAN_GM12878_ENCFF910PTH",
+              default="./data/CTCF_demo/02_formatted_data/smallest_demo",
               help="Input directory with PFM, methylation counts etc ..."),
 
   make_option(c("-i", "--max_iterations"), type="character", metavar="integer",
-              default=100,
+              default=1,
               help="Input directory with PFM, methylation counts etc ..."),  
     
   make_option(c("-o", "--output_dir"), type="character",
-              default="./data/CTCF_demo/05_motif_discovery/runs",
+              default="./data/CTCF_demo/03_output",
               help="", metavar="character"),
   
   make_option(c("-x", "--shifting_pos"), type="integer",
@@ -151,8 +151,8 @@ cat(paste0( "Start iterations wall time: ", Sys.time(), "\n"))
 
 while( shift_pos != 0 ){
   
-    if ( as.integer(iteration) > as.integer(opt$max_iterations) ){ 
-      cat( "Max number of iterations reached\n")
+  if ( as.integer(iteration) > as.integer(opt$max_iterations) ){ 
+    cat( "Max number of iterations reached\n")
     break }
   
   ## If the motif length had to be expanded 
@@ -218,6 +218,7 @@ while( shift_pos != 0 ){
     
     #############################################################   Train GLM ####
     cat( "Training GLM ...\n" )
+    
     this_glm <- train_GLM_at_shifted_pos( flanking = opt$flanking,
                                           pfm_length = opt$pfm_length,
                                           dat_all = dat_all,
@@ -330,6 +331,8 @@ while( shift_pos != 0 ){
     delta_mean_pos_change <- abs( mean_abs_pos_change - prev_mean_abs_pos_change )
     prev_mean_abs_pos_change <- mean_abs_pos_change
     
+
+    
     if ( delta_mean_pos_change < 0.1 ){
       
       cat( paste0( "Expand threshold percentage: ", opt$inf_pct, "\n" ))
@@ -409,6 +412,10 @@ sink()
 
 
 
+
+
+
+
 ################################################## Use only 90% for testing ####
 # ninety <- sample(1:nrow(dat_all$acc), floor( nrow(dat_all$acc)*0.9) )
 # dat_all$acc <- dat_all$acc[ninety, ]
@@ -439,3 +446,5 @@ sink()
 # vis_sequence(predictors_list[[101]], opt$pfm_length, ht_path )
 # ht_path <- paste0( opt$output_dir, "/ht_rev.pdf")
 # vis_sequence(rev_compl_predictors_list[[101]], opt$pfm_length, ht_path )
+
+
