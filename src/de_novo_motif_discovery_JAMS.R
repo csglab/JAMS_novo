@@ -32,14 +32,14 @@ set.seed(5)
 ########################################################   IN and load data ####
 option_list = list(
   make_option(c("-e", "--experiment"), type="character",
-              default="CTCF_HEK293_GSM2026781_de_novo",
+              default="CTCF_HEK293_GSM2026781",
               help="Experiment ID", metavar="character"),
 
   make_option(c("-f", "--flanking"), type="integer", default=20,
               help="length of flanking sequence around the motif", 
               metavar="character"),
   
-  make_option(c("-l", "--pfm_length"), type="integer", default=15,
+  make_option(c("-l", "--pfm_length"), type="integer", default=5,
               help="", metavar="character"),
   
   make_option(c("-d", "--input_dir"), type="character", metavar="character",
@@ -47,11 +47,11 @@ option_list = list(
               help="Input directory with PFM, methylation counts etc ..."),
 
   make_option(c("-i", "--max_iterations"), type="character", metavar="integer",
-              default=1,
+              default=100,
               help="Input directory with PFM, methylation counts etc ..."),  
     
   make_option(c("-o", "--output_dir"), type="character",
-              default="./data/CTCF_demo/03_output",
+              default="./data/CTCF_demo/05_motif_discovery/runs",
               help="", metavar="character"),
   
   make_option(c("-x", "--shifting_pos"), type="integer",
@@ -86,8 +86,15 @@ source( paste0( opt$script_path, "/Methyl_ChIP_ftns.R") )
 source_python(paste0( opt$script_path, "/motif_discovery.py" ) )
 source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
 
-experiment <- paste0( "de_novo_motif_finding_", opt$experiment, 
-                      "_flanking_", opt$flanking )
+
+if ( opt$pfm_length <= 4 ){
+  cat( paste0( "Minimum initial motif length > ", opt$pfm_length, "\n" ) )
+  break # Add same condition to main JAMS script, to same time
+}
+
+experiment <- paste0( "JAMS_de_novo_motif_", opt$experiment,
+                      "_start_length_", opt$pfm_length,
+                      "_flank_", opt$flanking )
 
 opt$output_dir <- paste0( opt$output_dir, "/de_novo_motif_", experiment )
 dir.create( opt$output_dir, showWarnings = FALSE )
@@ -100,8 +107,7 @@ cat(paste0( "Start wall time: ", Sys.time(), "\n"))
 if ( opt$exclude_meth ) {
   cat( paste0( "Training TF models without intra-motif methylation, ",
                "these coefficients will be added to *coefficients_with_FDR.txt ", 
-               "for conformity with other functions\n" ) )
-}
+               "for conformity with other functions\n" ) ) }
 
 
 cat( paste0( "\n\nLoading data (motif length = ", opt$pfm_length, ") ...\n" ) )
