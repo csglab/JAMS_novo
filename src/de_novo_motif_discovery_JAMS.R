@@ -88,17 +88,18 @@ source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
 
 
 if ( opt$pfm_length <= 4 ){
+   
   cat( paste0( "Minimum initial motif length > ", opt$pfm_length, "\n" ) )
   break # Add same condition to main JAMS script, to same time
 }
 
-experiment <- paste0( "JAMS_de_novo_motif_", opt$experiment,
+experiment <- paste0( opt$experiment,
                       "_start_length_", opt$pfm_length,
                       "_flank_", opt$flanking )
 
-opt$output_dir <- paste0( opt$output_dir, "/de_novo_motif_", experiment )
-dir.create( opt$output_dir, showWarnings = FALSE )
-prefix <- paste0( opt$output_dir, "/", experiment )
+opt$output_dir <- paste0( opt$output_dir, "/JAMS_de_novo_motif_", experiment )
+dir.create( opt$output_dir, showWarnings = TRUE )
+prefix <- paste0( opt$output_dir, "/JAMS_de_novo_motif_", experiment )
 
 sink( paste0( prefix, "_log.txt" ) )
 cat(paste0( experiment, "\n"))
