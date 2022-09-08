@@ -1,4 +1,4 @@
-# JAMS: Joint Accessibility-Methylation-Sequence models
+# JAMS: Joint Accessibility-Methylation-Sequence models with binomial methods
 #### Quantitative modeling of sequence, DNA accessibility, and methylation preferences of transcription factors using ChIP-seq data.
 
 
