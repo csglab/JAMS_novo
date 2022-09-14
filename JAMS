@@ -12,6 +12,11 @@ from src import methyl_chip
 
 parser = argparse.ArgumentParser(description='')
 
+parser.add_argument('--method', dest='METHOD',
+                    action='store', default='default_none',
+                    help='GLM_binomial, GLMM_binomial, or GLMM_beta_binomial.')
+
+
 parser.add_argument('--task', dest='TASK',
                     action='store', default='default_none',
                     nargs="*", help='tasks: DATA, BUILD, PREDICT, or NOVO.')

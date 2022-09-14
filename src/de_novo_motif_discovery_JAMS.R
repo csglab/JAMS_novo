@@ -12,6 +12,8 @@ suppressPackageStartupMessages(library(patchwork))
 suppressPackageStartupMessages(library(cowplot))
 suppressPackageStartupMessages(library(grid))
 suppressPackageStartupMessages(library(reticulate))
+suppressPackageStartupMessages(library(glmmTMB))
+
 options( error = traceback, nwarnings = 10000 )
 set.seed(5)
 
@@ -27,7 +29,7 @@ set.seed(5)
 # use_virtualenv("r-reticulate")
 
 # Used for testing with Rstudio, normally commented
-# setwd("/home/ahcorcha/repos/tools/JAMS_novo") # ahcorcha
+# setwd("/home/ahcorcha/repos/tools/JAMS_novo_binomial") # ahcorcha
 # /home/ahcorcha/repos/tools/JAMS_novo/dat/IN/NRF1_HUMAN_GM12878_ENCFF910PTH
 ########################################################   IN and load data ####
 option_list = list(
@@ -43,7 +45,7 @@ option_list = list(
               help="", metavar="character"),
   
   make_option(c("-d", "--input_dir"), type="character", metavar="character",
-              default="./data/CTCF_demo/02_formatted_data/smallest_demo",
+              default="/home/ahcorcha/repos/tools/JAMS_novo/data/CTCF_demo/02_formatted_data/smallest_demo",
               help="Input directory with PFM, methylation counts etc ..."),
 
   make_option(c("-i", "--max_iterations"), type="character", metavar="integer",
@@ -51,7 +53,7 @@ option_list = list(
               help="Input directory with PFM, methylation counts etc ..."),  
     
   make_option(c("-o", "--output_dir"), type="character",
-              default="./data/CTCF_demo/05_motif_discovery/runs",
+              default="./data/CTCF_demo/05_motif_discovery",
               help="", metavar="character"),
   
   make_option(c("-x", "--shifting_pos"), type="integer",
@@ -68,8 +70,14 @@ option_list = list(
               help="", metavar="character"),
   
   make_option(c("-s", "--script_path"), type="character",
-              default="/home/ahcorcha/repos/tools/JAMS_novo/src",
-              help="", metavar="character")
+              default="/home/ahcorcha/repos/tools/JAMS_novo_binomial/src",
+              help="", metavar="character"),
+
+  make_option(c("-g", "--method"), type="character",
+              default="GLM_binomial",
+              help="GLM_binomial, GLMM_binomial, or GLMM_beta_binomial", 
+              metavar="character")
+  
   );
 
 
@@ -206,6 +214,7 @@ while( shift_pos != 0 ){
     cat( paste0( "Pre-calc. predictors per position (motif length = ", 
                  opt$pfm_length, ") ... \n" ) )
   
+    # source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
     predictors_list <- pre_calc_by_pos_dat( this_dat_all = dat_all, 
                                             possible_position = possible_position, 
                                             flanking = opt$flanking, 
@@ -226,22 +235,31 @@ while( shift_pos != 0 ){
     #############################################################   Train GLM ####
     cat( "Training GLM ...\n" )
     
+    # opt$method <- "GLMM_beta_binomial"
+    # source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
     this_glm <- train_GLM_at_shifted_pos( flanking = opt$flanking,
                                           pfm_length = opt$pfm_length,
                                           dat_all = dat_all,
                                           start_pos = start_pos,
-                                          exclude_meth = opt$exclude_meth )
+                                          exclude_meth = opt$exclude_meth,
+                                          method = opt$method )
 
     ############### Evaluate every position within +/- 200 bps of peak center ####
     cat("Evaluate every position within +/- 200 bps of peak center ...\n")
-    pdwn_coeffs <- as.data.frame( coefficients( summary( this_glm ) ) )
+
+    if ( opt$method == "GLM_binomial" ){
+      pdwn_coeffs <- as.data.frame( coefficients( summary( this_glm ) )[-1,] )
+    }
+    if ( opt$method == "GLMM_binomial" ){
+      pdwn_coeffs <- as.data.frame( summary(this_glm)[["coefficients"]][["cond"]][-1,] )
+    }
+    if ( opt$method == "GLMM_beta_binomial" ){
+      pdwn_coeffs <- as.data.frame( summary(this_glm)[["coefficients"]][["cond"]][-1,] )
+    }
     
-    ## Get the pulldown coefficients
-    pdwn_coeffs <- pdwn_coeffs[ grepl(pattern = ":t$",
-                                x = rownames(pdwn_coeffs)),]
     
     ## Get the name of the variables included in th model
-    X_var_names <- gsub( ":t", "", rownames( pdwn_coeffs ) )
+    X_var_names <- rownames( pdwn_coeffs )
     
     ## Make sure those variables are in the correct order for the matrix*vector
     ## Mult. the PULLDOWN coeffs vector and the variable matrix for each position
@@ -250,6 +268,8 @@ while( shift_pos != 0 ){
                                 pdn_coeff = pdwn_coeffs$Estimate, 
                                 X_names = X_var_names )
       
+    
+    
     rownames(c_pdwn_predicted) <- rownames(predictors_list[[1]])
     c_pdwn_predicted <- as.data.frame( c_pdwn_predicted )
     
@@ -289,11 +309,14 @@ while( shift_pos != 0 ){
     ###### Save run's information: write coefficients / draw logo and DNA coeffs
     cat( "Visualization ...\n" )
     dna_acc_plot_name <- paste0( prefix_iteration, "_dna_coefficients.pdf" )
-  
-    p_dna_coeffs <- plot_dna_acc_coefficients( this_glm )
-
-    motif_coefs <- write.sequence.model.av.met( seq_fit = this_glm, opt$exclude_meth, opt$pfm_length )
-  
+    
+    ## Modify so they work with coefficient matrix
+    p_dna_coeffs <- plot_dna_acc_coefficients( pdwn_coeffs )
+    
+    # source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
+    motif_coefs <- write.sequence.model.av.met( coefs = pdwn_coeffs, opt$exclude_meth, opt$pfm_length )
+    
+    
     write.table( x =  motif_coefs[[1]], quote = FALSE, sep = "\t",
                  col.names = TRUE, row.names = TRUE,
                  file = paste0( prefix_iteration, "_coefficients_with_FDR.txt") )
@@ -310,10 +333,10 @@ while( shift_pos != 0 ){
     
     p_motif_ht <- grid.grabExpr( draw(motif_ht, heatmap_legend_side = "bottom") )
     
-    layout <- "AADD
-               AADD
-               BBDD
-               CCDD"
+    layout <- "AAEE
+               BBEE
+               CCEE
+               DDEE"
     
     this.tittle <- paste0( experiment, "\n",
                            "flanking = ", opt$flanking,

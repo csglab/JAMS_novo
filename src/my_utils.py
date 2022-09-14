@@ -30,12 +30,6 @@ def remove_tmp_files(out_path):
     rm_cmd = "find %s -type f -name '*.tmp' -delete" % (out_path)
     run_cmd(rm_cmd)
     
-def check_arguments(args):
-    print("Check formats TODO")
-    ## Check if files exist, args are strings, formats are right,
-    ##  move this to function script
-    return True
-    
 def read_line(line):
     new_line = line.replace("\n", "").split("\t")
     return new_line

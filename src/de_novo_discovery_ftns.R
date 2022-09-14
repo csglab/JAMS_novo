@@ -249,14 +249,17 @@ get_bin_acc <- function( acc = acc, pfm_length = pfm_length ){
 ############################################################################## #
 # 
 # 
-train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos, exclude_meth ){
+train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos, 
+                                      exclude_meth, method ){
   
   # start_pos <- rep_len(x = 101, length.out = nrow(dat_all$x.Met.all))
   # flanking <- 20
-  # pfm_length <- 15
+  # pfm_length <- 5
   # dat_all <- dat_all
-  # exclude_meth <- FALSE
-  
+  # exclude_meth <- TRUE
+  # method <- "GLM_binomial"
+  #  
+   
   region_len <- 2*flanking + pfm_length
   col_names <- paste0( "pos.", 1:(pfm_length), "." )
   
@@ -311,13 +314,7 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos, 
   colnames( x.CG ) <- col_names
   colnames( x.Met ) <- col_names
   
-  c_tags <- unlist( c( dat_all$target$ctrl.tag.old, 
-                       dat_all$target$pulldown.tag.old ) )
-
-  t <- unlist( c( rep( 0, nrow( dat_all$target ) ), 
-                  rep( 1, nrow( dat_all$target ) ) ) )
-  
-  XX <- data.frame( acc = acc, x.C = x.C, x.G = x.G, x.T = x.T, 
+  X <- data.frame( acc = acc, x.C = x.C, x.G = x.G, x.T = x.T, 
                     x.CG = x.CG, x.Met = x.Met, x.A = x.A,
                     x.T_up = x.T_up, x.C_up = x.C_up, 
                     x.G_up = x.G_up,x.M_up = x.M_up, 
@@ -326,53 +323,85 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos, 
                     x.M_down = x.M_down, x.W_down = x.W_down,
                     stringsAsFactors = TRUE )
   
-  rownames( XX ) <- NULL
-  XX <- rbind( XX, XX )
-  rownames( XX ) <- c( paste0( "control.", dat_all$target$Name ), 
-                       paste0( "pulldown.", dat_all$target$Name ) )
+  rownames( X ) <- NULL
+
+  predictors <- colnames( X )
+    
+  X$c_ctrl <- dat_all$target$ctrl.tag.old
+  X$c_pdwn <- dat_all$target$pulldown.tag.old
   
-  predictor.names.ctrl <- colnames( XX )
+  rownames( X ) <- dat_all$target$Name
+  
+ 
   
   # ahcorcha
-  predictor.names.ctrl <- predictor.names.ctrl[
-    !grepl("x\\.A\\.pos\\..*\\.$", predictor.names.ctrl)] 
-  
-  predictor.names.pdwn <- paste0( predictor.names.ctrl, ":t" )
+  # predictor.names.ctrl <- predictor.names.ctrl[
+  #   !grepl("x\\.A\\.pos\\..*\\.$", predictor.names.ctrl)] 
+  # 
+  # predictor.names.pdwn <- paste0( predictor.names.ctrl, ":t" )
   
   
   if ( exclude_meth ) {
-    predictor.names.pdwn <- predictor.names.pdwn[
-      !grepl("x\\.Met\\.pos\\..*\\.:t$", predictor.names.pdwn)] 
+    predictors <- predictors[ !grepl("x\\.Met\\.pos\\..*\\.$", predictors)] 
     }
   
-  predictor.names.pdwn <- paste(predictor.names.pdwn, collapse = "+")
-  predictor.names.ctrl <- paste(predictor.names.ctrl, collapse = "+")
   
-  # c_tags ~ . + t + .:t
-  this.formula <- as.formula( 
-                   paste0( "c_tags ~ ", predictor.names.ctrl, "+t+",
-                            predictor.names.pdwn) )
+  for_predictors <- paste0( predictors, collapse = "+" )
+  for_predictors <- paste0( "cbind(c_pdwn, c_ctrl) ~ ", for_predictors )
+  this.formula <- as.formula( for_predictors )
   
-  return( MASS::glm.nb( this.formula, data = XX ) )
+  
+  if ( method == "GLM_binomial" ){
+    this.fit <- stats::glm( formula = this.formula,
+                            data = X,
+                            family = stats::binomial(link = "logit") )    
+  }
+  if ( method == "GLMM_binomial" ){
+  this.fit <- glmmTMB::glmmTMB( formula = this.formula,
+                                data = X,
+                                family = stats::binomial(link = "logit"),
+                                ziformula = ~0 )    
+  }
+  
+  if ( method == "GLMM_beta_binomial" ){
+    this.fit <- glmmTMB::glmmTMB( formula = this.formula,
+                                  data = X,
+                                  family = glmmTMB::betabinomial(link = "logit"),
+                                  ziformula = ~0 )
+  }
+  ## good tutorial
+  # https://nlp.stanford.edu/manning/courses/ling289/GLMM.pdf
+  # https://stats.oarc.ucla.edu/other/mult-pkg/introduction-to-generalized-linear-mixed-models/
+  # https://www.rdocumentation.org/packages/glmm/versions/1.4.3/topics/glmm
+  
+  return( this.fit )
 }
+
+
+
+
+
 
 
 ############################################################################## #
 # 
 # Create the motif from the regression coefficients
 # Store the coefficients and their associated statistics
-write.sequence.model.av.met <- function( seq_fit, exclude_meth, pfm_length ) {
+write.sequence.model.av.met <- function( coefs, exclude_meth, pfm_length ) {
 
   # label <- paste0( experiment, "_", iteration_name ) 
-  # seq_fit <- this_glm
+  # coefs <- pdwn_coeffs
   # exclude_meth <- FALSE
-  # pfm_length <- 8
+  # pfm_length <- 5
   # outdir <- "./data/de_novo_discovery_test"
   
-  coefs <- coefficients( summary( seq_fit ) )
+  # coefs <- coefficients( summary( seq_fit ) )
   
   ## In case there are missing values in the coefs matrix, add them back
-  coefs <- fix.coefs( coefs, seq_fit$coefficients )
+  # coefs <- fix.coefs( coefs, seq_fit$coefficients )
+  
+  
+  
   
   ## Calculate the FDR for each coefficient
   coefs <- cbind( coefs, p.adjust( coefs[,4], method = "fdr" ) ) 
@@ -385,141 +414,65 @@ write.sequence.model.av.met <- function( seq_fit, exclude_meth, pfm_length ) {
   
   
   ## Get coef. for bases and methylation.
-  coefs_bases_control <- coefs[ grepl( pattern = ".\\.pos\\..*\\.$", x = rownames(coefs)), ]
-  coefs_bases_control <- data.frame( coefs_bases_control )
-  
-  
-  ## Get coef. for bases and methylation.
-  coefs_bases_pulldown <- coefs[grepl( pattern = ".\\.pos\\..*\\.:t$", x = rownames(coefs)), ]
-  coefs_bases_pulldown <- data.frame( coefs_bases_pulldown )
+  coefs_bases <- coefs[ grepl( pattern = ".\\.pos\\..*\\.$", x = rownames(coefs)), ]
+  coefs_bases <- data.frame( coefs_bases )
+
   
   
   # Get base/bases specific per position
-  base <- gsub( pattern = "x.", replacement = "", x = rownames( coefs_bases_control ) )
-  coefs_bases_control$base <- gsub( pattern = "\\.pos\\..*\\.", replacement = "", x = base )
-  
-  base <- gsub( pattern = "x.", replacement = "", x = rownames( coefs_bases_pulldown ) )
-  coefs_bases_pulldown$base <- gsub( pattern = "\\.pos\\..*\\.:t", replacement = "", x = base )
+  base <- gsub( pattern = "x.", replacement = "", x = rownames( coefs_bases ) )
+  coefs_bases$base <- gsub( pattern = "\\.pos\\..*\\.", replacement = "", x = base )
   
   
-  coefs_control_meth <- coefs_bases_control[ ( coefs_bases_control$base == "Met" ), ]
-  coefs_pulldown_meth <- coefs_bases_pulldown[ ( coefs_bases_pulldown$base == "Met" ), ]
-  
-  
-  ## 
-  coefs_control_meth$FDR[ is.na( coefs_control_meth$FDR ) ] <- 1
-  coefs_control_meth[ coefs_control_meth$FDR >= 0.00001, "Estimate"] <- NA
+  coefs_meth <- coefs_bases[ ( coefs_bases$base == "Met" ), ]
 
-  coefs_pulldown_meth$FDR[ is.na( coefs_pulldown_meth$FDR ) ] <- 1
-  coefs_pulldown_meth[ coefs_pulldown_meth$FDR >= 0.00001, "Estimate"] <- NA
+  ## 
+  coefs_meth$FDR[ is.na( coefs_meth$FDR ) ] <- 1
+  coefs_meth[ coefs_meth$FDR >= 0.00001, "Estimate"] <- NA
   
   
   # Take out CpG position coefficients
-  coefs_bases_control <- coefs_bases_control[ ( coefs_bases_control$base != "Met" ) & 
-                                              ( coefs_bases_control$base != "CG" ), ]
-  
-  coefs_bases_pulldown <- coefs_bases_pulldown[ ( coefs_bases_pulldown$base != "Met" ) & 
-                                                ( coefs_bases_pulldown$base != "CG" ), ]
-  
+  coefs_bases <- coefs_bases[ ( coefs_bases$base != "Met" ) & 
+                              ( coefs_bases$base != "CG" ), ]
   
   #### Control
-  motif_control <- matrix( coefs_bases_control[, "Estimate"], nrow = 3, byrow = TRUE )
+  motif <- matrix( coefs_bases[, "Estimate"], nrow = 3, byrow = TRUE )
   ## Add a row in the beginning, corresponding to A
-  motif_control <- rbind( rep.int( 0, ncol( motif_control ) ), motif_control )  
-  motif_control <- rbind( motif_control, coefs_control_meth$Estimate )
+  motif <- rbind( rep.int( 0, ncol( motif ) ), motif )  
+  motif <- rbind( motif, coefs_meth$Estimate )
   
-  rownames( motif_control ) <- c( "A", "C", "G", "T", "CtoM" )
-  colnames( motif_control ) <- 1:ncol( motif_control )
-  motif_control[1:4, ] <- scale( motif_control[1:4,], center = TRUE, scale = FALSE )
-  
-  
-  #### Pulldown
-  motif_pulldown <- matrix( coefs_bases_pulldown[, "Estimate"], nrow = 3, byrow = TRUE )
-  ## Add a row in the beginning, corresponding to A
-  motif_pulldown <- rbind( rep.int( 0, ncol( motif_pulldown ) ), motif_pulldown )  
-  motif_pulldown <- rbind( motif_pulldown, coefs_pulldown_meth$Estimate )
-  
-  rownames( motif_pulldown ) <- c( "A", "C", "G", "T", "CtoM" )
-  colnames( motif_pulldown ) <- 1:ncol( motif_pulldown )
-  motif_pulldown[1:4, ] <- scale( motif_pulldown[1:4,], center = TRUE, scale = FALSE )
-  
+  rownames( motif ) <- c( "A", "C", "G", "T", "CtoM" )
+  colnames( motif ) <- 1:ncol( motif )
+  motif[1:4, ] <- scale( motif[1:4,], center = TRUE, scale = FALSE )
+
   
   ## Scale the motif so that each column has a mean of zero, and also correct the
   #  intercept so that the motif scores would still exactly match the regression results
   ## Show control and pulldown motif in the same figure
-  pp_motif <- draw.ctrl.pdwn.motif.av.meth( pulldown_coefs = coefs_pulldown_meth,
-                                            control_coefs = coefs_control_meth,
-                                            pulldown_motif = motif_pulldown,
-                                            control_motif = motif_control )
+  pp_motif <- draw.ctrl.pdwn.motif.av.meth( coefs = coefs_meth,
+                                            motif = motif )
+  
   return( list(coefs = coefs, pp_motif =pp_motif) )
 }
 
 
-draw.ctrl.pdwn.motif.av.meth <- function( pulldown_coefs = coefs_pulldown_meth,
-                                          control_coefs = coefs_control_meth,
-                                          pulldown_motif = motif_pulldown,
-                                          control_motif = motif_control ) {
+draw.ctrl.pdwn.motif.av.meth <- function( coefs_meth = coefs_meth,
+                                          motif = motif ) {
 
-  # pulldown_coefs = coefs_pulldown_meth
-  # control_coefs = coefs_control_meth
-  # pulldown_motif = motif_pulldown
-  # control_motif = motif_control
+  # coefs = coefs_meth
+  # motif = motif
+  # 
+  area_scale <- max( abs( motif[1:4, ] ) )
   
-  area_scale <- max( max( abs( pulldown_motif[1:4, ] ) ), max( abs( control_motif[1:4, ] ) ) )
-  area_scale_ctrl <- max( abs( control_motif[1:4, ] ) )
-  
-  
-  this_width <- max( 2 +  0.85*ncol( pulldown_motif ), 8 )
+  this_width <- max( 2 +  0.85*ncol( motif ), 8 )
 
-  pdwn_motif <- motif.logo.av.met( motif = pulldown_motif, coefs_bases = pulldown_coefs )
-  pdwn_htmp <- motif.heatmap.av.met( motif = pulldown_motif, coefs_bases = pulldown_coefs,
-                                     area_scale = area_scale )
-
-  # ggsave( filename = paste0(outdir,"/",label,"_pulldown_motif_logo.pdf"), 
-  #         plot = pdwn_motif / pdwn_htmp, 
-  #         units = "cm", device = "pdf", width = this_width, height = 23 )
+  motif_p <- motif.logo.av.met( motif = motif, coefs_bases = coefs_meth )
   
-
-  ctrl_motif <- motif.logo.av.met( motif = control_motif, coefs_bases = control_coefs )
-  ctrl_htmp <- motif.heatmap.av.met( motif = control_motif, coefs_bases = control_coefs,
-                                     area_scale = area_scale_ctrl )
-  
-  # ggsave( filename = paste0(outdir,"/",label,"_control_motif_logo.pdf"), plot = ctrl_motif / ctrl_htmp,
-  #         units = "cm", device = "pdf", width = this_width, height = 23 )
-  
-  ctrl_htmp <- motif.heatmap.av.met( motif = control_motif, coefs_bases = control_coefs,
+  htmp <- motif.heatmap.av.met( motif = motif, coefs_bases = coefs_meth,
                                      area_scale = area_scale )
   
-  
-  ## Y positive limit
-  pos_y <- cbind( pulldown_motif, control_motif )
-  pos_y[ pos_y < 0 ] <- 0
-  pos_y <- max( colSums( pos_y, na.rm = TRUE ) )*1
+  pp <- motif_p / htmp
 
-  ## Y negative limit
-  neg_y <- cbind( pulldown_motif, control_motif )
-  neg_y[ neg_y > 0 ] <- 0
-  neg_y <- min( colSums( neg_y, na.rm = TRUE ) )*1
-  
-
-  
-  pdwn_motif <- pdwn_motif + ylim( neg_y, pos_y) + ggtitle( "Pulldown") + 
-                 theme( plot.title = element_text( hjust = 0.5 ) )
-  
-  ctrl_motif <- ctrl_motif + ylim( neg_y, pos_y)
-  
-  ctrl_motif <- ctrl_motif + ylab("") + ggtitle( "Control" ) +
-                 theme( plot.title = element_text( hjust = 0.5 ) )
-  
-  ctrl_htmp <- ctrl_htmp + ylab("")
-  
-  
-  pp <- ( ( pdwn_motif / pdwn_htmp ) | ( ctrl_motif  / ctrl_htmp ) ) 
-  #       + plot_annotation( theme( title = "Sequence & mCpG coefficients"  ) )
-  
-  # ggsave( filename = paste0( prefix, "_control_n_pulldown_motif_logo.pdf"), 
-  #         plot = pp, units = "cm", device = "pdf", 
-  #         width = this_width*2, height = 23 )
   return(pp)
   }
 
@@ -600,13 +553,14 @@ pre_calc_by_pos_dat <- function( this_dat_all, possible_position, flanking = 20,
 }
 
 
-plot_dna_acc_coefficients <- function(fit_model){
+plot_dna_acc_coefficients <- function(coefs){
   
+  # coefs <- pdwn_coeffs
   # fit_model <- fit_CpG_only$fit
   # plot_name <- dna_acc_plot_name
   
   ## Subset coefficients
-  coefs <- as.data.frame( coef( summary( fit_model ) ) )
+  # coefs <- as.data.frame( coef( summary( fit_model ) ) )
   coefs$FDR <- as.double( p.adjust( coefs[,4], method = "fdr" ) )
   coefs$FDR[ coefs$FDR >= 0.1 ] <- NA
   
@@ -615,26 +569,13 @@ plot_dna_acc_coefficients <- function(fit_model){
   
   dna_coefs <- coefs[ grepl( pattern = "acc", x = rownames( coefs ) ), ]
   
-  dna_coefs_ctrl <- dna_coefs[ ! grepl( pattern = ":t", x = rownames( dna_coefs ) ), ]
-  dna_coefs_ctrl$Name <- rownames( dna_coefs_ctrl )
-  dna_coefs_ctrl$Name <- gsub( "_", "\\.", dna_coefs_ctrl$Name )
-  
-  dna_coefs_pdwn <- dna_coefs[ grepl( pattern = ":t", x = rownames( dna_coefs ) ), ]
-  dna_coefs_pdwn$Name <- rownames( dna_coefs_pdwn )
-  dna_coefs_pdwn$Name <- gsub( "_", "\\.", dna_coefs_pdwn$Name )
-  
-  
-  dna_coefs_pdwn$Name <- factor(dna_coefs_pdwn$Name, levels = dna_coefs_pdwn$Name)
-  dna_coefs_ctrl$Name <- factor(dna_coefs_ctrl$Name, levels = dna_coefs_ctrl$Name)
-  
-    
-  
+  dna_coefs$Name <- rownames( dna_coefs )
+  dna_coefs$Name <- factor(dna_coefs$Name, levels = dna_coefs$Name)
+
   #################################################################### ##
-  y_min <- min( c( ( dna_coefs_ctrl$Estimate - dna_coefs_ctrl$`Std. Error` ), 
-                   ( dna_coefs_pdwn$Estimate - dna_coefs_pdwn$`Std. Error` ) ) )
+  y_min <- min( dna_coefs$Estimate )
   
-  y_max <- max( c( ( dna_coefs_ctrl$Estimate + dna_coefs_ctrl$`Std. Error` ), 
-                   ( dna_coefs_pdwn$Estimate + dna_coefs_pdwn$`Std. Error` ) ) )
+  y_max <- max( dna_coefs$Estimate )
   
   mag <- abs( y_max - y_min )
   center <- y_min + ( mag / 2 )
@@ -644,38 +585,21 @@ plot_dna_acc_coefficients <- function(fit_model){
   #################################################################### ## 
   
   
-  dna_pdwn_plot <- ggplot( data = dna_coefs_pdwn, aes( x = Name, y = Estimate, 
-                                                       color = FDR_color ) ) +
-                           geom_point( size = 1 ) +
-                           geom_errorbar( aes( x = Name, width=0.5,
-                                               ymin = Estimate - `Std. Error`, 
-                                               ymax = Estimate + `Std. Error` ) ) +
-                           theme_minimal() + labs( x = "Pulldown", y = "DNA accessibility\n coefficients" ) +
-                           theme( axis.text.x = element_text( angle = 290, hjust = 0 ),
-                                  legend.position = "none" ) + 
-                           ylim( y_min, y_max ) + 
-                           scale_color_manual( values = c( "grey", "black" ) )
-  
-  
-  dna_ctrl_plot <- ggplot( data = dna_coefs_ctrl, aes( x = Name, y = Estimate, 
-                                                       color = FDR_color ) ) +
-                           geom_point( size = 1 ) +
-                           geom_errorbar( aes( x = Name, width=0.5,
-                                               ymin = Estimate - `Std. Error`, 
-                                               ymax = Estimate + `Std. Error` ) ) +
-                           theme_minimal() + labs( x = "Control", y = "" ) + 
-                           theme( axis.text.x = element_text( angle = 290, hjust = 0 ) ) +
-                           ylim( y_min, y_max ) + 
-                           scale_color_manual( values = c( "grey", "black" ),
-                                               labels = c( "> 0.1", "< 0.1" ) ) + 
-                           labs(color = "FDR")
-  
-  coefficient_plot <- ( dna_pdwn_plot + dna_ctrl_plot ) + 
-                        plot_annotation( title = "GLM coefficients for DNA accessibility" )
+  dna_plot <- ggplot( data = dna_coefs, aes( x = Name, y = Estimate, 
+                                             color = FDR_color ) ) +
+                      geom_point( size = 1 ) +
+                      geom_errorbar( aes( x = Name, width=0.5,
+                                          ymin = Estimate - `Std. Error`, 
+                                          ymax = Estimate + `Std. Error` ) ) +
+                      theme_minimal() + labs( x = "", y = "DNA accessibility\n coefficients" ) +
+                      theme( axis.text.x = element_text( angle = 290, hjust = 0 ),
+                             legend.position = "none" ) + 
+                      ylim( y_min, y_max ) + ggtitle("Coefficients for DNA accessibility") +
+                      scale_color_manual( values = c( "grey", "black" ) )
   
   # ggsave( filename = plot_name, plot = coefficient_plot, 
   #         units = "cm", width = 20, height = 10 ) 
-  return(coefficient_plot)
+  return(dna_plot)
   }
 
 
@@ -747,7 +671,7 @@ add.meth.coeffs <- function( pdwn_coeffs, pfm_length ){
                                "FDR" = dummy_line2 
                               )
   # x.Met.pos.6.
-  rownames(meth_coeffs) <- paste0("x.Met.pos.", 1:pfm_length, ".:t" )
+  rownames(meth_coeffs) <- paste0( "x.Met.pos.", 1:pfm_length, "." )
     
   colnames(meth_coeffs) <- colnames(pdwn_coeffs)
     
@@ -984,11 +908,11 @@ get_motif <- function(pdwn_coeffs, magnitud = "Estimate" ){
   
   # magnitud <- "Estimate"
   # magnitud <- "z value"
-  C_coefs <- pdwn_coeffs[ grepl( pattern = "^x\\.C\\.pos\\..*\\.:t$", 
+  C_coefs <- pdwn_coeffs[ grepl( pattern = "^x\\.C\\.pos\\..*\\.$", 
                                  x = rownames(pdwn_coeffs)),]
-  T_coefs <- pdwn_coeffs[ grepl( pattern = "^x\\.T\\.pos\\..*\\.:t$", 
+  T_coefs <- pdwn_coeffs[ grepl( pattern = "^x\\.T\\.pos\\..*\\.$", 
                                  x = rownames(pdwn_coeffs)),]
-  G_coefs <- pdwn_coeffs[ grepl( pattern = "^x\\.G\\.pos\\..*\\.:t$", 
+  G_coefs <- pdwn_coeffs[ grepl( pattern = "^x\\.G\\.pos\\..*\\.$", 
                                  x = rownames(pdwn_coeffs)),]
   
   motif <- data.frame( C_seq = C_coefs[, magnitud ],
