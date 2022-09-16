@@ -249,16 +249,20 @@ get_bin_acc <- function( acc = acc, pfm_length = pfm_length ){
 ############################################################################## #
 # 
 # 
-train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos, 
-                                      exclude_meth, method ){
-  
-  # start_pos <- rep_len(x = 101, length.out = nrow(dat_all$x.Met.all))
+train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
+                                      exclude_meth, method, iteration, out_dir ){
+  # start_pos <- floor( runif( num_peaks,
+  #                          min = pos_limits[1],
+  #                          max = pos_limits[2] ) )
   # flanking <- 20
-  # pfm_length <- 5
+  # start_pos <- rep_len(x = 101, length.out = nrow(dat_all$x.Met.all))
+  # 
+  # pfm_length <- 8
   # dat_all <- dat_all
-  # exclude_meth <- TRUE
-  # method <- "GLM_binomial"
-  #  
+  # exclude_meth <- FALSE
+  # method <- "GLMM_binomial"
+  # iteration <- 1
+  # out_dir <- "./data/CTCF_demo/05_motif_discovery/JAMS_de_novo_motif_CTCF_HEK293_GSM2026781_start_length_8_flank_20"
    
   region_len <- 2*flanking + pfm_length
   col_names <- paste0( "pos.", 1:(pfm_length), "." )
@@ -275,7 +279,6 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
   x.M <- shift_per_row( start_extract_pos, dat_all$x.M.all, region_len)
   x.W <- shift_per_row( start_extract_pos, dat_all$x.W.all, region_len)
  
-  
   region_len <- 2000 + pfm_length
   acc_start_extract_pos <- start_pos
   acc <- shift_per_row( acc_start_extract_pos, dat_all$acc, region_len )
@@ -284,20 +287,17 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
   upstream_flank <- 1:(flanking)
   motif <- (flanking+1):(flanking+pfm_length)
   downstream_flank <- (flanking+pfm_length+1):(2*flanking+pfm_length)
-
-  #### 
+   
   x.T_up <- rowSums( x.T[, upstream_flank] )
   x.C_up <- rowSums( x.C[, upstream_flank] )
   x.G_up <- rowSums( x.G[, upstream_flank] )
   x.M_up <- rowMeans( x.M[, upstream_flank] )
   x.W_up <- rowMeans( x.W[, upstream_flank] )
-  
   x.T_down <- rowSums(x.T[, downstream_flank])
   x.C_down <- rowSums(x.C[, downstream_flank])
   x.G_down <- rowSums(x.G[, downstream_flank])
   x.M_down <- rowSums(x.M[, downstream_flank])
   x.W_down <- rowSums(x.W[, downstream_flank])
-  
   x.C <- x.C[, motif ]
   x.A <- x.A[, motif ]
   x.G <- x.G[, motif ]
@@ -305,7 +305,6 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
   x.CpG <- x.CpG[, motif ]
   x.Met <- x.Met[, motif ]
   x.CG <- x.CG[, motif ]
-  
   colnames( x.A ) <- col_names
   colnames( x.C ) <- col_names
   colnames( x.G ) <- col_names
@@ -324,31 +323,67 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
                     stringsAsFactors = TRUE )
   
   rownames( X ) <- NULL
-
   predictors <- colnames( X )
-    
   X$c_ctrl <- dat_all$target$ctrl.tag.old
   X$c_pdwn <- dat_all$target$pulldown.tag.old
-  
   rownames( X ) <- dat_all$target$Name
   
- 
   
-  # ahcorcha
-  # predictor.names.ctrl <- predictor.names.ctrl[
-  #   !grepl("x\\.A\\.pos\\..*\\.$", predictor.names.ctrl)] 
-  # 
-  # predictor.names.pdwn <- paste0( predictor.names.ctrl, ":t" )
+  write.csv(cor(X[,predictors]), file = paste0(out_dir, "/correlation_mat/correlation_matrix_iteration_", iteration, ".csv" ) )
+  
+  pdf(file = paste0(out_dir, "/correlation_mat/corr_plot_iteration_", iteration, ".pdf" ), width = 10, height = 10)
+  draw(ComplexHeatmap::Heatmap(as.matrix(cor(X))))
+  dev.off()
+  
+  predictors <- predictors[ !grepl("x\\.A\\.pos\\..*\\.$", predictors)]
+  
+  # # predictors <- predictors[ !grepl("acc.*$", predictors)]
+  # predictors <- predictors[ !grepl("x\\.W_down$", predictors)]
+  # predictors <- predictors[ !grepl("x\\.W_up$", predictors)]
+  
+
   
   
-  if ( exclude_meth ) {
-    predictors <- predictors[ !grepl("x\\.Met\\.pos\\..*\\.$", predictors)] 
-    }
+  predictors <- predictors[ ( grepl("acc.*$", predictors) ) |
+                            ( grepl("x\\.C\\.pos\\..*\\.$", predictors) ) |
+                            ( grepl("x\\.G\\.pos\\..*\\.$", predictors) ) |
+                            ( grepl("x\\.T\\.pos\\..*\\.$", predictors) )
+                            ]
   
   
   for_predictors <- paste0( predictors, collapse = "+" )
   for_predictors <- paste0( "cbind(c_pdwn, c_ctrl) ~ ", for_predictors )
   this.formula <- as.formula( for_predictors )
+  
+
+  
+  
+
+  
+  
+  this.formula<-as.formula("cbind(c_pdwn, c_ctrl) ~ acc.bin_down_5 + acc.bin_down_4 + acc.bin_down_3 + 
+    acc.bin_down_2 + acc.bin_down_1 + acc.bin_motif + acc.bin_up_1 + 
+    acc.bin_up_2 + acc.bin_up_3 + acc.bin_up_4 + acc.bin_up_5 + 
+    x.C.pos.1. + x.C.pos.2. + x.C.pos.3. + x.C.pos.4. + x.C.pos.5. + 
+    x.C.pos.6. + x.C.pos.7. + x.C.pos.8. + x.G.pos.1. + x.G.pos.2. + 
+    x.G.pos.3. + x.G.pos.4. + x.G.pos.5. + x.G.pos.6. + x.G.pos.7. + 
+    x.G.pos.8. + x.T.pos.1. + x.T.pos.2. + x.T.pos.3. + x.T.pos.4. + 
+    x.T.pos.5. + x.T.pos.6. + x.T.pos.7. + x.T.pos.8. + x.CG.pos.1. + 
+    x.CG.pos.2. + x.CG.pos.3. + x.CG.pos.4. + x.CG.pos.5. + x.CG.pos.6. + 
+    x.CG.pos.7. + x.CG.pos.8. + x.Met.pos.1. + x.Met.pos.2. + 
+    x.Met.pos.3. + x.Met.pos.4. + x.Met.pos.5. + x.Met.pos.6. + 
+    x.Met.pos.7. + x.Met.pos.8. + x.T_up + x.C_up + x.G_up + 
+    x.M_up + x.W_up + x.T_down + x.C_down + x.G_down + x.M_down + 
+    x.W_down + (1|acc.bin_motif) ")
+  
+  # this.fit <- glmmTMB::glmmTMB( formula = this.formula,
+  #                               data = X,
+  #                               family = stats::binomial(link = "logit"),
+  #                               ziformula = ~0 )
+  # fixef(this.fit)
+  # diagnose(this.fit)
+  
+  ## https://www.lcampanelli.org/mixed-effects-modeling-lme4/
   
   
   if ( method == "GLM_binomial" ){
@@ -357,10 +392,14 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
                             family = stats::binomial(link = "logit") )    
   }
   if ( method == "GLMM_binomial" ){
-  this.fit <- glmmTMB::glmmTMB( formula = this.formula,
-                                data = X,
-                                family = stats::binomial(link = "logit"),
-                                ziformula = ~0 )    
+    
+    this.fit <- glmmTMB::glmmTMB( formula = this.formula,
+                                   data = X,
+                                   family = stats::binomial(link = "logit"),
+                                   ziformula = ~0 )
+    # fixef(this.fit)
+    # diagnose(this.fit)
+    
   }
   
   if ( method == "GLMM_beta_binomial" ){
@@ -369,10 +408,16 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
                                   family = glmmTMB::betabinomial(link = "logit"),
                                   ziformula = ~0 )
   }
+  
+  ## https://cran.r-project.org/web/packages/glmmTMB/vignettes/troubleshooting.html
+  
   ## good tutorial
   # https://nlp.stanford.edu/manning/courses/ling289/GLMM.pdf
   # https://stats.oarc.ucla.edu/other/mult-pkg/introduction-to-generalized-linear-mixed-models/
   # https://www.rdocumentation.org/packages/glmm/versions/1.4.3/topics/glmm
+  # if ( exclude_meth ) {
+  # predictors <- predictors[ !grepl("x\\.Met\\.pos\\..*\\.$", predictors)] 
+  # }
   
   return( this.fit )
 }

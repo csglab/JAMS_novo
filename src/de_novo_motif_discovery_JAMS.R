@@ -41,7 +41,7 @@ option_list = list(
               help="length of flanking sequence around the motif", 
               metavar="character"),
   
-  make_option(c("-l", "--pfm_length"), type="integer", default=5,
+  make_option(c("-l", "--pfm_length"), type="integer", default=8,
               help="", metavar="character"),
   
   make_option(c("-d", "--input_dir"), type="character", metavar="character",
@@ -74,7 +74,7 @@ option_list = list(
               help="", metavar="character"),
 
   make_option(c("-g", "--method"), type="character",
-              default="GLM_binomial",
+              default="GLMM_binomial",
               help="GLM_binomial, GLMM_binomial, or GLMM_beta_binomial", 
               metavar="character")
   
@@ -107,6 +107,7 @@ experiment <- paste0( opt$experiment,
 
 opt$output_dir <- paste0( opt$output_dir, "/JAMS_de_novo_motif_", experiment )
 dir.create( opt$output_dir, showWarnings = TRUE )
+dir.create( paste0(opt$output_dir, "/correlation_mat"), showWarnings = TRUE )
 prefix <- paste0( opt$output_dir, "/JAMS_de_novo_motif_", experiment )
 
 sink( paste0( prefix, "_log.txt" ) )
@@ -236,13 +237,15 @@ while( shift_pos != 0 ){
     cat( "Training GLM ...\n" )
     
     # opt$method <- "GLMM_beta_binomial"
-    # source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
+    source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
     this_glm <- train_GLM_at_shifted_pos( flanking = opt$flanking,
                                           pfm_length = opt$pfm_length,
                                           dat_all = dat_all,
                                           start_pos = start_pos,
                                           exclude_meth = opt$exclude_meth,
-                                          method = opt$method )
+                                          method = opt$method,
+                                          iteration = i, 
+                                          out_dir = opt$output_dir)
 
     ############### Evaluate every position within +/- 200 bps of peak center ####
     cat("Evaluate every position within +/- 200 bps of peak center ...\n")
@@ -251,6 +254,9 @@ while( shift_pos != 0 ){
       pdwn_coeffs <- as.data.frame( coefficients( summary( this_glm ) )[-1,] )
     }
     if ( opt$method == "GLMM_binomial" ){
+      # pdwn_coeffs <- as.data.frame( summary(this.fit)[["coefficients"]][["cond"]][-1,] )
+      # pdwn_coeffs <- as.data.frame( summary(this.fit)[["coefficients"]][["cond"]] )
+      
       pdwn_coeffs <- as.data.frame( summary(this_glm)[["coefficients"]][["cond"]][-1,] )
     }
     if ( opt$method == "GLMM_beta_binomial" ){
