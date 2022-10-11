@@ -329,11 +329,11 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
   rownames( X ) <- dat_all$target$Name
   
   
-  write.csv(cor(X[,predictors]), file = paste0(out_dir, "/correlation_mat/correlation_matrix_iteration_", iteration, ".csv" ) )
-  
-  pdf(file = paste0(out_dir, "/correlation_mat/corr_plot_iteration_", iteration, ".pdf" ), width = 10, height = 10)
-  draw(ComplexHeatmap::Heatmap(as.matrix(cor(X))))
-  dev.off()
+  # write.csv(cor(X[,predictors]), file = paste0(out_dir, "/correlation_mat/correlation_matrix_iteration_", iteration, ".csv" ) )
+  # 
+  # pdf(file = paste0(out_dir, "/correlation_mat/corr_plot_iteration_", iteration, ".pdf" ), width = 10, height = 10)
+  # draw(ComplexHeatmap::Heatmap(as.matrix(cor(X))))
+  # dev.off()
   
   predictors <- predictors[ !grepl("x\\.A\\.pos\\..*\\.$", predictors)]
   
@@ -374,7 +374,7 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
     x.Met.pos.3. + x.Met.pos.4. + x.Met.pos.5. + x.Met.pos.6. + 
     x.Met.pos.7. + x.Met.pos.8. + x.T_up + x.C_up + x.G_up + 
     x.M_up + x.W_up + x.T_down + x.C_down + x.G_down + x.M_down + 
-    x.W_down + (1|acc.bin_motif) ")
+    x.W_down + (1|1) ")
   
   # this.fit <- glmmTMB::glmmTMB( formula = this.formula,
   #                               data = X,
