@@ -254,16 +254,16 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
   # start_pos <- floor( runif( num_peaks,
   #                          min = pos_limits[1],
   #                          max = pos_limits[2] ) )
-  # flanking <- 20
-  # start_pos <- rep_len(x = 101, length.out = nrow(dat_all$x.Met.all))
-  # 
-  # pfm_length <- 8
+  # start_pos <- rep_len(x = 101, length.out = nrow(dat_all$x.Met.all)
   # dat_all <- dat_all
   # exclude_meth <- FALSE
   # method <- "GLMM_binomial"
   # iteration <- 1
   # out_dir <- "./data/CTCF_demo/05_motif_discovery/JAMS_de_novo_motif_CTCF_HEK293_GSM2026781_start_length_8_flank_20"
    
+  # flanking <- 20
+  # pfm_length <- 8
+  
   region_len <- 2*flanking + pfm_length
   col_names <- paste0( "pos.", 1:(pfm_length), "." )
   
@@ -335,80 +335,42 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
   # draw(ComplexHeatmap::Heatmap(as.matrix(cor(X))))
   # dev.off()
   
-  predictors <- predictors[ !grepl("x\\.A\\.pos\\..*\\.$", predictors)]
-  
-  # # predictors <- predictors[ !grepl("acc.*$", predictors)]
-  # predictors <- predictors[ !grepl("x\\.W_down$", predictors)]
-  # predictors <- predictors[ !grepl("x\\.W_up$", predictors)]
-  
-
-  
-  
-  predictors <- predictors[ ( grepl("acc.*$", predictors) ) |
-                            ( grepl("x\\.C\\.pos\\..*\\.$", predictors) ) |
-                            ( grepl("x\\.G\\.pos\\..*\\.$", predictors) ) |
-                            ( grepl("x\\.T\\.pos\\..*\\.$", predictors) )
-                            ]
-  
+  predictors <- predictors[!grepl(pattern = "x\\.A.", x = predictors)]
   
   for_predictors <- paste0( predictors, collapse = "+" )
-  for_predictors <- paste0( "cbind(c_pdwn, c_ctrl) ~ ", for_predictors )
-  this.formula <- as.formula( for_predictors )
   
-
-  
-  
-
-  
-  
-  this.formula<-as.formula("cbind(c_pdwn, c_ctrl) ~ acc.bin_down_5 + acc.bin_down_4 + acc.bin_down_3 + 
-    acc.bin_down_2 + acc.bin_down_1 + acc.bin_motif + acc.bin_up_1 + 
-    acc.bin_up_2 + acc.bin_up_3 + acc.bin_up_4 + acc.bin_up_5 + 
-    x.C.pos.1. + x.C.pos.2. + x.C.pos.3. + x.C.pos.4. + x.C.pos.5. + 
-    x.C.pos.6. + x.C.pos.7. + x.C.pos.8. + x.G.pos.1. + x.G.pos.2. + 
-    x.G.pos.3. + x.G.pos.4. + x.G.pos.5. + x.G.pos.6. + x.G.pos.7. + 
-    x.G.pos.8. + x.T.pos.1. + x.T.pos.2. + x.T.pos.3. + x.T.pos.4. + 
-    x.T.pos.5. + x.T.pos.6. + x.T.pos.7. + x.T.pos.8. + x.CG.pos.1. + 
-    x.CG.pos.2. + x.CG.pos.3. + x.CG.pos.4. + x.CG.pos.5. + x.CG.pos.6. + 
-    x.CG.pos.7. + x.CG.pos.8. + x.Met.pos.1. + x.Met.pos.2. + 
-    x.Met.pos.3. + x.Met.pos.4. + x.Met.pos.5. + x.Met.pos.6. + 
-    x.Met.pos.7. + x.Met.pos.8. + x.T_up + x.C_up + x.G_up + 
-    x.M_up + x.W_up + x.T_down + x.C_down + x.G_down + x.M_down + 
-    x.W_down + (1|1) ")
-  
-  # this.fit <- glmmTMB::glmmTMB( formula = this.formula,
-  #                               data = X,
-  #                               family = stats::binomial(link = "logit"),
-  #                               ziformula = ~0 )
-  # fixef(this.fit)
-  # diagnose(this.fit)
+  this.formula <- paste0( "cbind(c_pdwn, c_ctrl) ~ ", for_predictors )
   
   ## https://www.lcampanelli.org/mixed-effects-modeling-lme4/
   
   
   if ( method == "GLM_binomial" ){
+    this.formula <- as.formula( this.formula )
     this.fit <- stats::glm( formula = this.formula,
                             data = X,
                             family = stats::binomial(link = "logit") )    
   }
-  if ( method == "GLMM_binomial" ){
-    
-    this.fit <- glmmTMB::glmmTMB( formula = this.formula,
-                                   data = X,
-                                   family = stats::binomial(link = "logit"),
-                                   ziformula = ~0 )
-    # fixef(this.fit)
-    # diagnose(this.fit)
-    
-  }
   
-  if ( method == "GLMM_beta_binomial" ){
-    this.fit <- glmmTMB::glmmTMB( formula = this.formula,
-                                  data = X,
-                                  family = glmmTMB::betabinomial(link = "logit"),
-                                  ziformula = ~0 )
-  }
-  
+  if ( method != "GLM_binomial" ){
+    
+    this.formula <- as.formula( paste0( this.formula, " + (1|1)" ) )
+    # this.formula <- as.formula( paste0( this.formula, " + (1|acc.bin_motif)" ) )
+    
+    if ( method == "GLMM_binomial" ){
+      this.fit <- glmmTMB::glmmTMB( formula = this.formula,
+                                    data = X,
+                                    family = stats::binomial(link = "logit"),
+                                    ziformula = ~0 )
+      # fixef(this.fit) # diagnose(this.fit)
+      }
+    
+    if ( method == "GLMM_beta_binomial" ){
+      this.fit <- glmmTMB::glmmTMB( formula = this.formula,
+                                    data = X,
+                                    family = glmmTMB::betabinomial(link = "logit"),
+                                    ziformula = ~0 )
+      }
+    }
   ## https://cran.r-project.org/web/packages/glmmTMB/vignettes/troubleshooting.html
   
   ## good tutorial

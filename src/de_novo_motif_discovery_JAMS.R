@@ -17,20 +17,9 @@ suppressPackageStartupMessages(library(glmmTMB))
 options( error = traceback, nwarnings = 10000 )
 set.seed(5)
 
-## https://rstudio.github.io/reticulate/articles/python_packages.html
-## https://rstudio.github.io/reticulate/reference/use_python.html
-## https://rstudio.github.io/reticulate/articles/package.html
-## https://rstudio.github.io/reticulate/
-
-## install python packages
-# py_install("numba")
-# virtualenv_create("r-reticulate")
-# virtualenv_install("r-reticulate", "numba", version = "0.55.2" )
-# use_virtualenv("r-reticulate")
-
 # Used for testing with Rstudio, normally commented
 # setwd("/home/ahcorcha/repos/tools/JAMS_novo_binomial") # ahcorcha
-# /home/ahcorcha/repos/tools/JAMS_novo/dat/IN/NRF1_HUMAN_GM12878_ENCFF910PTH
+
 ########################################################   IN and load data ####
 option_list = list(
   make_option(c("-e", "--experiment"), type="character",
@@ -74,7 +63,7 @@ option_list = list(
               help="", metavar="character"),
 
   make_option(c("-g", "--method"), type="character",
-              default="GLMM_binomial",
+              default="GLMM_beta_binomial",
               help="GLM_binomial, GLMM_binomial, or GLMM_beta_binomial", 
               metavar="character")
   
@@ -237,7 +226,7 @@ while( shift_pos != 0 ){
     cat( "Training GLM ...\n" )
     
     # opt$method <- "GLMM_beta_binomial"
-    source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
+    # source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
     this_glm <- train_GLM_at_shifted_pos( flanking = opt$flanking,
                                           pfm_length = opt$pfm_length,
                                           dat_all = dat_all,
@@ -370,7 +359,7 @@ while( shift_pos != 0 ){
 
     
     if ( delta_mean_pos_change < 0.1 ){
-      
+      # 0.1
       cat( paste0( "Expand threshold percentage: ", opt$inf_pct, "\n" ))
       
       ## returns positions to be shifted +/- 1,2,3,4,5 or expand
@@ -484,3 +473,13 @@ sink()
 # vis_sequence(rev_compl_predictors_list[[101]], opt$pfm_length, ht_path )
 
 
+## https://rstudio.github.io/reticulate/articles/python_packages.html
+## https://rstudio.github.io/reticulate/reference/use_python.html
+## https://rstudio.github.io/reticulate/articles/package.html
+## https://rstudio.github.io/reticulate/
+
+## install python packages
+# py_install("numba")
+# virtualenv_create("r-reticulate")
+# virtualenv_install("r-reticulate", "numba", version = "0.55.2" )
+# use_virtualenv("r-reticulate")
