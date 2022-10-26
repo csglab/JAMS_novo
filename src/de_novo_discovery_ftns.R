@@ -344,14 +344,25 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
   ## https://www.lcampanelli.org/mixed-effects-modeling-lme4/
   
   
+  if ( method == "GLM_beta_binomial" ){
+    # https://www.rdocumentation.org/packages/aod/versions/1.3.2/topics/betabin
+    this.formula <- as.formula( this.formula )
+    # this.formula <- as.formula( "cbind(c_pdwn, c_ctrl) ~ acc.bin_motif" )
+    this.fit <- aod::betabin( formula = this.formula,
+                              random = ~ 1,
+                              data = X,
+                              link = "logit" )
+  }
+  
   if ( method == "GLM_binomial" ){
+    
     this.formula <- as.formula( this.formula )
     this.fit <- stats::glm( formula = this.formula,
                             data = X,
                             family = stats::binomial(link = "logit") )    
   }
   
-  if ( method != "GLM_binomial" ){
+  if ( method %in% c( "GLMM_binomial", "GLMM_beta_binomial" ) ){
     
     this.formula <- as.formula( paste0( this.formula, " + (1|1)" ) )
     # this.formula <- as.formula( paste0( this.formula, " + (1|acc.bin_motif)" ) )
@@ -362,15 +373,15 @@ train_GLM_at_shifted_pos <- function( flanking, pfm_length, dat_all, start_pos,
                                     family = stats::binomial(link = "logit"),
                                     ziformula = ~0 )
       # fixef(this.fit) # diagnose(this.fit)
-      }
+    }
     
     if ( method == "GLMM_beta_binomial" ){
       this.fit <- glmmTMB::glmmTMB( formula = this.formula,
                                     data = X,
                                     family = glmmTMB::betabinomial(link = "logit"),
                                     ziformula = ~0 )
-      }
     }
+  }
   ## https://cran.r-project.org/web/packages/glmmTMB/vignettes/troubleshooting.html
   
   ## good tutorial

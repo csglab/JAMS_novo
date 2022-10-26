@@ -13,6 +13,8 @@ suppressPackageStartupMessages(library(cowplot))
 suppressPackageStartupMessages(library(grid))
 suppressPackageStartupMessages(library(reticulate))
 suppressPackageStartupMessages(library(glmmTMB))
+suppressPackageStartupMessages(library(aod))
+
 
 options( error = traceback, nwarnings = 10000 )
 set.seed(5)
@@ -63,12 +65,11 @@ option_list = list(
               help="", metavar="character"),
 
   make_option(c("-g", "--method"), type="character",
-              default="GLMM_beta_binomial",
-              help="GLM_binomial, GLMM_binomial, or GLMM_beta_binomial", 
+              default="GLM_beta_binomial",
+              help="GLM_binomial, GLMM_binomial, GLM_beta_binomial, or GLMM_beta_binomial", 
               metavar="character")
   
   );
-
 
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser); rm(option_list, opt_parser)
@@ -216,17 +217,18 @@ while( shift_pos != 0 ){
   ###############################################################   Iteration ####
   # opt$max_iterations <- 20
   for (i in iteration:as.integer(opt$max_iterations)) {
-    iteration <- iteration + 1
     ### Starting iteration
     # i <- 1
+    iteration <- iteration + 1
     cat( paste0( "Iteration: ", i, "\n" ) )
     prefix_iteration <- paste0( prefix, "_iteration_", format_iteration(i) )
     
     #############################################################   Train GLM ####
     cat( "Training GLM ...\n" )
     
-    # opt$method <- "GLMM_beta_binomial"
-    # source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
+    # opt$method <- "GLM_beta_binomial"
+    source( paste0( opt$script_path, "/de_novo_discovery_ftns.R" ) )
+    
     this_glm <- train_GLM_at_shifted_pos( flanking = opt$flanking,
                                           pfm_length = opt$pfm_length,
                                           dat_all = dat_all,
@@ -235,13 +237,19 @@ while( shift_pos != 0 ){
                                           method = opt$method,
                                           iteration = i, 
                                           out_dir = opt$output_dir)
-
+    
     ############### Evaluate every position within +/- 200 bps of peak center ####
     cat("Evaluate every position within +/- 200 bps of peak center ...\n")
 
     if ( opt$method == "GLM_binomial" ){
       pdwn_coeffs <- as.data.frame( coefficients( summary( this_glm ) )[-1,] )
     }
+    
+    if ( opt$method == "GLM_beta_binomial" ){
+      pdwn_coeffs <- as.data.frame( summary(this_glm)@Coef )[-1,]
+      colnames(pdwn_coeffs)[4] <- "Pr(>|z|)"
+    }
+    
     if ( opt$method == "GLMM_binomial" ){
       # pdwn_coeffs <- as.data.frame( summary(this.fit)[["coefficients"]][["cond"]][-1,] )
       # pdwn_coeffs <- as.data.frame( summary(this.fit)[["coefficients"]][["cond"]] )
